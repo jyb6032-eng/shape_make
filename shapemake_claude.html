@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>모양 나라 그림판</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap">
+<style>
+/* Layout: 교실 칠판처럼 왼쪽 모양 상자 · 가운데 도화지 · 아래 크레파스 줄 */
+:root{
+  --desk:#F3EFE4;      /* 책상 나무빛 바탕 */
+  --panel:#FFFFFF;
+  --ink:#2B2F4A;       /* 진한 남색 글자 */
+  --muted:#6B6F86;
+  --line:#DCD6C6;
+  --accent:#2E6FD8;    /* 파란 크레파스 */
+  --accent-soft:#E3ECFB;
+  --danger:#D6453D;
+  --display:"Jua","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --body:"Gowun Dodum","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  color-scheme:light;
+}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--desk);color:var(--ink);font-family:var(--body);font-size:16px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+button{font-family:var(--display);color:var(--ink);cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.app{max-width:1280px;margin:0 auto;display:grid;gap:12px}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(26px,4vw,38px);margin:0;letter-spacing:.5px;display:flex;align-items:center;gap:10px}
+h1 .dots{display:inline-flex;gap:4px}
+h1 .dots i{display:block;width:18px;height:18px}
+.who{display:flex;flex-wrap:wrap;gap:8px;margin-left:auto}
+.who label{display:flex;align-items:center;gap:6px;font-family:var(--display);font-size:17px}
+.who input{font-family:var(--body);font-size:17px;border:2px solid var(--line);border-radius:10px;padding:8px 10px;width:150px;background:var(--panel);color:var(--ink);-webkit-user-select:text;user-select:text}
+.main{display:grid;grid-template-columns:132px minmax(0,1fr);gap:12px;align-items:start}
+.rail{display:flex;flex-direction:column;gap:10px;background:var(--panel);border:2px solid var(--line);border-radius:18px;padding:12px}
+.rail h2,.tray h2{font-family:var(--display);font-weight:400;font-size:16px;margin:0;color:var(--muted);letter-spacing:.5px}
+.shape-btn{display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--desk);border:2px solid transparent;border-radius:14px;padding:10px 4px;font-size:18px}
+.shape-btn svg{width:56px;height:56px}
+.shape-btn:active{transform:scale(.95)}
+.count{font-family:var(--body);font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.count b{color:var(--ink);font-size:18px}
+.stage{display:grid;gap:10px;min-width:0}
+.paper-wrap{position:relative;width:100%;max-width:calc((100vh - 300px) * 4 / 3);min-width:min(100%,320px);margin:0 auto}
+canvas{display:block;width:100%;aspect-ratio:4/3;max-width:100%;border-radius:14px;box-shadow:0 2px 0 var(--line),0 10px 24px rgba(60,50,20,.12);touch-action:none;background:#fff}
+.hint{position:absolute;left:12px;bottom:12px;right:12px;font-size:15px;background:rgba(255,255,255,.92);border:2px dashed var(--line);border-radius:12px;padding:8px 12px;pointer-events:none}
+.tools{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.tool{background:var(--panel);border:2px solid var(--line);border-radius:12px;padding:9px 14px;font-size:17px;display:inline-flex;align-items:center;gap:6px}
+.tool:disabled{opacity:.35;cursor:default}
+.tool.warn{color:var(--danger)}
+.tool.go{background:var(--accent);border-color:var(--accent);color:#fff;font-size:19px;padding:10px 20px}
+.tray{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;background:var(--panel);border:2px solid var(--line);border-radius:18px;padding:10px 14px}
+.swatches{display:flex;flex-wrap:wrap;gap:8px}
+.sw{width:40px;height:40px;border-radius:50%;border:3px solid rgba(0,0,0,.12);padding:0}
+.sw[aria-pressed="true"]{outline:4px solid var(--ink);outline-offset:2px}
+.sw.paper{border-radius:10px;width:44px;height:36px}
+.confirm{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px;background:#FFF4F2;border:2px solid #F2C7C2;border-radius:14px;padding:10px;font-family:var(--display);font-size:18px}
+.modal{position:fixed;inset:0;background:rgba(30,32,50,.55);display:grid;place-items:center;padding:16px;z-index:20}
+.sheet{background:var(--panel);border-radius:20px;padding:18px;max-width:760px;width:100%;max-height:100%;overflow:auto;display:grid;gap:12px}
+.sheet h3{font-family:var(--display);font-weight:400;font-size:26px;margin:0}
+.sheet canvas{width:100%;height:auto;aspect-ratio:auto;border:2px solid var(--line);border-radius:12px;box-shadow:none}
+.sheet img{width:100%;border-radius:12px;border:2px solid var(--line);-webkit-touch-callout:default;-webkit-user-select:auto;user-select:auto}
+.sheet p{margin:0;line-height:1.6;font-size:17px}
+.sheet .row{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+@media (max-width:720px){
+  .main{grid-template-columns:minmax(0,1fr)}
+  .rail{flex-direction:row;flex-wrap:wrap;justify-content:center;align-items:center}
+  .rail h2{width:100%;text-align:center}
+  .shape-btn{flex:1 1 80px}
+  .shape-btn svg{width:42px;height:42px}
+  .paper-wrap{max-width:100%}
+  .who{margin-left:0}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <h1><span class="dots"><i style="background:#F2B705;clip-path:polygon(50% 0,100% 100%,0 100%)"></i><i style="background:#E8503A"></i><i style="background:#2E6FD8;border-radius:50%"></i></span>모양 나라 그림판</h1>
+    <div class="who">
+      <label for="title">제목 <input id="title" maxlength="20" placeholder="우리 집"></label>
+      <label for="name">이름 <input id="name" maxlength="10" placeholder="이름 쓰기"></label>
+    </div>
+  </header>
+
+  <div class="main">
+    <nav class="rail" aria-label="모양 고르기">
+      <h2>모양 넣기</h2>
+      <button class="shape-btn" data-add="tri" aria-label="세모 넣기">
+        <svg viewBox="0 0 60 60"><polygon points="30,6 56,52 4,52" fill="#F2B705" stroke="#2B2F4A" stroke-width="3" stroke-linejoin="round"/></svg>
+        세모 <span class="count"><b id="c-tri">0</b>개</span>
+      </button>
+      <button class="shape-btn" data-add="rect" aria-label="네모 넣기">
+        <svg viewBox="0 0 60 60"><rect x="7" y="9" width="46" height="42" rx="2" fill="#E8503A" stroke="#2B2F4A" stroke-width="3"/></svg>
+        네모 <span class="count"><b id="c-rect">0</b>개</span>
+      </button>
+      <button class="shape-btn" data-add="circle" aria-label="동그라미 넣기">
+        <svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="23" fill="#2E6FD8" stroke="#2B2F4A" stroke-width="3"/></svg>
+        동그라미 <span class="count"><b id="c-circle">0</b>개</span>
+      </button>
+    </nav>
+
+    <section class="stage">
+      <div class="paper-wrap">
+        <canvas id="cv" width="1200" height="900" aria-label="그림 그리는 도화지"></canvas>
+        <div class="hint" id="hint">예시 그림이에요. 모양을 눌러서 옮겨 보세요. 처음부터 하려면 <b>전체 지우기</b>를 눌러요.</div>
+      </div>
+
+      <div class="tools" role="toolbar" aria-label="고른 모양 바꾸기">
+        <button class="tool sel" id="b-copy" disabled>📄 복사</button>
+        <button class="tool sel" id="b-front" disabled>⬆ 앞으로</button>
+        <button class="tool sel" id="b-back" disabled>⬇ 뒤로</button>
+        <button class="tool sel warn" id="b-del" disabled>✕ 지우기</button>
+        <button class="tool" id="b-undo">↶ 되돌리기</button>
+        <button class="tool warn" id="b-new">🗑 전체 지우기</button>
+        <button class="tool go" id="b-save">저장하기</button>
+      </div>
+      <div class="confirm" id="confirm" hidden>
+        모든 모양을 지울까요?
+        <button class="tool warn" id="b-yes">모두 지우기</button>
+        <button class="tool" id="b-no">그대로 두기</button>
+      </div>
+
+      <div class="tray">
+        <h2>색칠하기</h2>
+        <div class="swatches" id="colors" aria-label="모양 색"></div>
+        <h2>종이 색</h2>
+        <div class="swatches" id="papers" aria-label="종이 색"></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="modal" id="modal" hidden>
+  <div class="sheet" role="dialog" aria-labelledby="mt">
+    <h3 id="mt">다 만들었어요! 👏</h3>
+    <div id="outbox"><img id="out" alt="완성한 모양 그림"></div>
+    <p><b>패드에 저장하는 방법</b> · 위 그림을 손가락으로 <b>꾹</b> 누르고 <b>‘사진 앱에 저장’</b>(또는 ‘이미지 저장’)을 고르세요.</p>
+    <div class="row">
+      <button class="tool" id="b-dl">파일로 내려받기</button>
+      <button class="tool go" id="b-close">계속 꾸미기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+const W=1200,H=900;
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+const COLORS=['#E8503A','#F28C28','#F2B705','#5DB85C','#3BB3C3','#2E6FD8','#7A5BD6','#EE7FB3','#8B5A3C','#2B2F4A','#9AA0A6','#FFFFFF'];
+const PAPERS=['#FFFFFF','#E4F2FB','#E8F5E1','#FFF6D8','#FBE6EE'];
+const NAMES={tri:'세모',rect:'네모',circle:'동그라미'};
+let shapes=[],sel=-1,color='#2E6FD8',paper='#FFFFFF',hist=[];
+
+const SAMPLE={paper:'#E4F2FB',shapes:[
+ {type:'rect',x:880,y:640,w:420,h:40,rot:0,color:'#5DB85C'},
+ {type:'rect',x:470,y:500,w:360,h:260,rot:0,color:'#F2B705'},
+ {type:'tri',x:470,y:290,w:440,h:180,rot:0,color:'#E8503A'},
+ {type:'rect',x:470,y:565,w:90,h:130,rot:0,color:'#8B5A3C'},
+ {type:'rect',x:370,y:470,w:80,h:80,rot:0,color:'#3BB3C3'},
+ {type:'rect',x:570,y:470,w:80,h:80,rot:0,color:'#3BB3C3'},
+ {type:'rect',x:900,y:520,w:40,h:180,rot:0,color:'#8B5A3C'},
+ {type:'circle',x:900,y:400,w:200,h:200,rot:0,color:'#5DB85C'},
+ {type:'circle',x:1060,y:130,w:130,h:130,rot:0,color:'#F28C28'},
+ {type:'tri',x:160,y:150,w:70,h:60,rot:0.5236,color:'#FFFFFF'},
+ {type:'circle',x:230,y:150,w:110,h:70,rot:0,color:'#FFFFFF'}
+]};
+
+/* ---------- 저장(임시) ---------- */
+function persist(){try{localStorage.setItem('shapeboard',JSON.stringify({shapes,paper,t:val('title'),n:val('name')}))}catch(e){}}
+function val(id){return document.getElementById(id).value.trim()}
+function load(){
+  let d=null;try{d=JSON.parse(localStorage.getItem('shapeboard')||'null')}catch(e){}
+  if(d&&d.shapes&&d.shapes.length){shapes=d.shapes;paper=d.paper||'#FFFFFF';
+    document.getElementById('title').value=d.t||'';document.getElementById('name').value=d.n||'';hideHint();}
+  else{shapes=JSON.parse(JSON.stringify(SAMPLE.shapes));paper=SAMPLE.paper;}
+}
+function hideHint(){document.getElementById('hint').hidden=true}
+function snap(){hist.push(JSON.stringify({shapes,paper}));if(hist.length>60)hist.shift()}
+
+/* ---------- 그리기 ---------- */
+function pathFor(c,s){
+  const w=s.w/2,h=s.h/2;c.beginPath();
+  if(s.type==='rect')c.rect(-w,-h,s.w,s.h);
+  else if(s.type==='circle')c.ellipse(0,0,w,h,0,0,Math.PI*2);
+  else{c.moveTo(0,-h);c.lineTo(w,h);c.lineTo(-w,h);c.closePath();}
+}
+function drawShape(c,s){
+  c.save();c.translate(s.x,s.y);c.rotate(s.rot);pathFor(c,s);
+  c.fillStyle=s.color;c.fill();c.lineJoin='round';c.lineWidth=4;c.strokeStyle='rgba(43,47,74,.85)';c.stroke();c.restore();
+}
+function render(){
+  ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle=paper;ctx.fillRect(0,0,W,H);
+  shapes.forEach(s=>drawShape(ctx,s));
+  if(sel>=0){const s=shapes[sel];ctx.save();ctx.translate(s.x,s.y);ctx.rotate(s.rot);
+    ctx.setLineDash([12,8]);ctx.lineWidth=3;ctx.strokeStyle='#2E6FD8';ctx.strokeRect(-s.w/2-8,-s.h/2-8,s.w+16,s.h+16);ctx.setLineDash([]);
+    ctx.beginPath();ctx.moveTo(0,-s.h/2-8);ctx.lineTo(0,-s.h/2-ROT_OFF);ctx.stroke();
+    handle(0,-s.h/2-ROT_OFF,'↻');handle(s.w/2+8,s.h/2+8,'⤡');ctx.restore();}
+  updateUI();
+}
+const HR=30,ROT_OFF=70;
+function handle(x,y,t){ctx.beginPath();ctx.arc(x,y,HR,0,Math.PI*2);ctx.fillStyle='#2E6FD8';ctx.fill();ctx.lineWidth=4;ctx.strokeStyle='#fff';ctx.stroke();
+  ctx.fillStyle='#fff';ctx.font='32px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(t,x,y+2);}
+
+/* ---------- 고르기 ---------- */
+function toLocal(s,px,py){const dx=px-s.x,dy=py-s.y,c=Math.cos(-s.rot),n=Math.sin(-s.rot);return{x:dx*c-dy*n,y:dx*n+dy*c}}
+function inside(s,px,py){const p=toLocal(s,px,py),w=s.w/2,h=s.h/2;
+  if(s.type==='rect')return Math.abs(p.x)<=w&&Math.abs(p.y)<=h;
+  if(s.type==='circle')return (p.x*p.x)/(w*w)+(p.y*p.y)/(h*h)<=1;
+  if(p.y<-h||p.y>h)return false;return Math.abs(p.x)<=w*((p.y+h)/s.h)+6;}
+function hitHandle(px,py){if(sel<0)return null;const s=shapes[sel],p=toLocal(s,px,py),r=HR+12;
+  if(Math.hypot(p.x,p.y+s.h/2+ROT_OFF)<=r)return'rot';
+  if(Math.hypot(p.x-s.w/2-8,p.y-s.h/2-8)<=r)return'size';return null;}
+function pos(e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height}}
+
+const pts=new Map();let mode=null,start=null;
+cv.addEventListener('pointerdown',e=>{
+  cv.setPointerCapture(e.pointerId);const p=pos(e);pts.set(e.pointerId,p);
+  if(pts.size===2&&sel>=0){const [a,b]=[...pts.values()],s=shapes[sel];
+    mode='pinch';start={d:Math.hypot(b.x-a.x,b.y-a.y),a:Math.atan2(b.y-a.y,b.x-a.x),w:s.w,h:s.h,rot:s.rot};return;}
+  if(pts.size>1)return;
+  const h=hitHandle(p.x,p.y);
+  if(h){snap();mode=h;hideHint();return;}
+  let i=-1;for(let k=shapes.length-1;k>=0;k--){if(inside(shapes[k],p.x,p.y)){i=k;break;}}
+  sel=i;
+  if(i>=0){snap();mode='move';start={dx:p.x-shapes[i].x,dy:p.y-shapes[i].y};hideHint();}
+  else mode=null;
+  render();
+});
+cv.addEventListener('pointermove',e=>{
+  if(!pts.has(e.pointerId))return;const p=pos(e);pts.set(e.pointerId,p);if(sel<0||!mode)return;const s=shapes[sel];
+  if(mode==='pinch'&&pts.size===2){const [a,b]=[...pts.values()],d=Math.hypot(b.x-a.x,b.y-a.y),k=d/start.d;
+    s.w=clamp(start.w*k,40,1100);s.h=clamp(start.h*k,40,850);s.rot=snapAng(start.rot+Math.atan2(b.y-a.y,b.x-a.x)-start.a);}
+  else if(mode==='move'){s.x=clamp(p.x-start.dx,0,W);s.y=clamp(p.y-start.dy,0,H);}
+  else if(mode==='size'){const l=toLocal(s,p.x,p.y);s.w=clamp(2*Math.abs(l.x)-16,40,1100);s.h=clamp(2*Math.abs(l.y)-16,40,850);}
+  else if(mode==='rot'){s.rot=snapAng(Math.atan2(p.y-s.y,p.x-s.x)+Math.PI/2);}
+  render();
+});
+function up(e){pts.delete(e.pointerId);if(pts.size===0){if(mode)persist();mode=null;}else if(mode==='pinch')mode=null;}
+cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function snapAng(a){const st=Math.PI/12,n=Math.round(a/st)*st;return Math.abs(n-a)<0.1?n:a}
+
+/* ---------- 버튼 ---------- */
+document.querySelectorAll('[data-add]').forEach(b=>b.addEventListener('click',()=>{
+  snap();hideHint();const t=b.dataset.add,j=()=>Math.round((Math.random()-.5)*160);
+  shapes.push({type:t,x:W/2+j(),y:H/2+j(),w:t==='tri'?190:170,h:t==='tri'?165:170,rot:0,color});
+  sel=shapes.length-1;render();persist();}));
+function act(id,fn){document.getElementById(id).addEventListener('click',()=>{fn();render();persist();})}
+act('b-copy',()=>{if(sel<0)return;snap();const c={...shapes[sel],x:shapes[sel].x+40,y:shapes[sel].y+40};shapes.push(c);sel=shapes.length-1;});
+act('b-front',()=>{if(sel<0)return;snap();const s=shapes.splice(sel,1)[0];shapes.push(s);sel=shapes.length-1;});
+act('b-back',()=>{if(sel<0)return;snap();const s=shapes.splice(sel,1)[0];shapes.unshift(s);sel=0;});
+act('b-del',()=>{if(sel<0)return;snap();shapes.splice(sel,1);sel=-1;});
+act('b-undo',()=>{const h=hist.pop();if(!h)return;const d=JSON.parse(h);shapes=d.shapes;paper=d.paper;sel=-1;});
+const conf=document.getElementById('confirm');
+document.getElementById('b-new').addEventListener('click',()=>{if(!shapes.length)return;conf.hidden=false;});
+document.getElementById('b-no').addEventListener('click',()=>{conf.hidden=true;});
+act('b-yes',()=>{snap();shapes=[];sel=-1;conf.hidden=true;hideHint();});
+
+function buildColors(){const box=document.getElementById('colors');box.innerHTML='';
+  COLORS.forEach(c=>{const b=document.createElement('button');b.className='sw';b.style.background=c;b.setAttribute('aria-label','색 '+c);
+    b.setAttribute('aria-pressed',String(c===color));
+    b.onclick=()=>{color=c;if(sel>=0){snap();shapes[sel].color=c;persist();}buildColors();render();};box.appendChild(b);});}
+function buildPapers(){const box=document.getElementById('papers');box.innerHTML='';
+  PAPERS.forEach(c=>{const b=document.createElement('button');b.className='sw paper';b.style.background=c;b.setAttribute('aria-label','종이 '+c);
+    b.setAttribute('aria-pressed',String(c===paper));
+    b.onclick=()=>{snap();paper=c;buildPapers();render();persist();};box.appendChild(b);});}
+['title','name'].forEach(id=>document.getElementById(id).addEventListener('input',persist));
+
+function updateUI(){
+  const n={tri:0,rect:0,circle:0};shapes.forEach(s=>n[s.type]++);
+  for(const k in n)document.getElementById('c-'+k).textContent=n[k];
+  document.querySelectorAll('.tool.sel').forEach(b=>b.disabled=sel<0);
+  document.getElementById('b-undo').disabled=!hist.length;
+}
+
+/* ---------- 완성 그림 만들기 ---------- */
+let dataUrl='';
+document.getElementById('b-save').addEventListener('click',()=>{
+  const top=120,c=document.createElement('canvas');c.width=W;c.height=H+top;const g=c.getContext('2d');
+  g.fillStyle='#FFFFFF';g.fillRect(0,0,W,top);g.fillStyle=paper;g.fillRect(0,top,W,H);
+  g.save();g.translate(0,top);shapes.forEach(s=>drawShape(g,s));g.restore();
+  g.fillStyle='#2B2F4A';g.textBaseline='middle';
+  g.font='52px Jua, sans-serif';g.textAlign='left';g.fillText(val('title')||'모양 나라 그림',36,52);
+  const n={tri:0,rect:0,circle:0};shapes.forEach(s=>n[s.type]++);
+  g.font='28px "Gowun Dodum", sans-serif';g.fillStyle='#6B6F86';
+  g.fillText('세모 '+n.tri+'개 · 네모 '+n.rect+'개 · 동그라미 '+n.circle+'개',36,96);
+  const d=new Date();g.textAlign='right';g.fillStyle='#2B2F4A';g.font='40px Jua, sans-serif';
+  g.fillText(val('name')||'',W-36,50);g.font='26px "Gowun Dodum", sans-serif';g.fillStyle='#6B6F86';
+  g.fillText((d.getMonth()+1)+'월 '+d.getDate()+'일',W-36,96);
+  g.strokeStyle='#DCD6C6';g.lineWidth=3;g.beginPath();g.moveTo(0,top-1.5);g.lineTo(W,top-1.5);g.stroke();
+  sel=-1;render();
+  const box=document.getElementById('outbox');box.innerHTML='';
+  const showCanvas=()=>{box.innerHTML='';box.appendChild(c);};
+  const img=new Image();img.alt='완성한 모양 그림';img.onerror=showCanvas;
+  try{dataUrl=c.toDataURL('image/png');}catch(err){dataUrl='';}
+  if(c.toBlob){c.toBlob(b=>{if(!b){showCanvas();return;}img.src=URL.createObjectURL(b);box.appendChild(img);},'image/png');}
+  else if(dataUrl){img.src=dataUrl;box.appendChild(img);} else showCanvas();
+  document.getElementById('modal').hidden=false;
+});
+function closeModal(){document.getElementById('modal').hidden=true;}
+document.getElementById('b-close').addEventListener('click',closeModal);
+document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+document.getElementById('b-dl').addEventListener('click',()=>{
+  const a=document.createElement('a');a.href=dataUrl;a.download=(val('name')||'모양그림')+'_'+(val('title')||'모양나라')+'.png';
+  document.body.appendChild(a);a.click();a.remove();});
+
+load();buildColors();buildPapers();
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(render);
+render();
+})();
+</script>
+
+</body>
+</html>
